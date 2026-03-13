@@ -34,11 +34,7 @@ class DirectClient:
             "params": {
                 "SelectionCriteria": {
                     "Statuses": ["DRAFT", "ACCEPTED", "MODERATION", "REJECTED"],
-                    "States": [
-                        "ON", "OFF", "SUSPENDED", "ENDED",
-                        "CONVERTED", "ARCHIVED", "UNACCEPTABLE",
-                        "ON_MODERATION", "UNKNOWN",
-                    ],
+                    "States": ["ON", "OFF", "SUSPENDED", "ENDED", "CONVERTED", "ARCHIVED"],
                 },
                 "FieldNames": [
                     "Id",
