@@ -32,7 +32,14 @@ class DirectClient:
         body = {
             "method": "get",
             "params": {
-                "SelectionCriteria": {},
+                "SelectionCriteria": {
+                    "Statuses": ["DRAFT", "ACCEPTED", "MODERATION", "REJECTED"],
+                    "States": [
+                        "ON", "OFF", "SUSPENDED", "ENDED",
+                        "CONVERTED", "ARCHIVED", "UNACCEPTABLE",
+                        "ON_MODERATION", "UNKNOWN",
+                    ],
+                },
                 "FieldNames": [
                     "Id",
                     "Name",

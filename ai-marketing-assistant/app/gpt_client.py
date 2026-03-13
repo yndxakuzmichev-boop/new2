@@ -16,7 +16,7 @@ class YandexGPTClient:
             "Authorization": f"Api-Key {settings.yandex_gpt_api_key}",
             "Content-Type": "application/json",
         }
-        self.model_uri = f"gpt://{settings.yandex_gpt_folder_id}/yandexgpt-lite"
+        self.model_uri = f"gpt://{settings.yandex_gpt_folder_id}/yandexgpt-lite/latest"
 
     async def chat(self, messages: list, system_prompt: str) -> str:
         gpt_messages = [{"role": "system", "text": system_prompt}]

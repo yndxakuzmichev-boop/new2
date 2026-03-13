@@ -75,10 +75,13 @@ class MarketingAssistant:
                 for kw in ("список кампаний", "мои кампании", "покажи кампании", "все кампании")
             ):
                 campaigns = await self.direct.get_campaigns()
-                if campaigns and "error" not in campaigns[0]:
-                    context_data = "Список кампаний:\n" + json.dumps(
-                        campaigns, ensure_ascii=False, indent=2
-                    )
+                if isinstance(campaigns, list) and not any("error" in c for c in campaigns):
+                    if campaigns:
+                        context_data = "Список кампаний:\n" + json.dumps(
+                            campaigns, ensure_ascii=False, indent=2
+                        )
+                    else:
+                        context_data = "В аккаунте Яндекс Директ кампаний не найдено. Возможно, аккаунт пуст или логин Client-Login указан неверно."
                 else:
                     context_data = f"Ошибка получения кампаний: {campaigns}"
 
