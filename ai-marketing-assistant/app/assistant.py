@@ -103,9 +103,12 @@ class MarketingAssistant:
 
         try:
             # --- Intent: список кампаний ---
-            if any(kw in text for kw in (
+            # Не включаем слово "кампании" само по себе — оно встречается в командах вида
+            # "увеличь в кампании бюджет", что приводило к ложному срабатыванию
+            has_budget_intent = any(kw in text for kw in ("бюджет", "останови", "запусти", "включи", "выключи", "пауза", "статистика"))
+            if not has_budget_intent and any(kw in text for kw in (
                 "список кампаний", "мои кампании", "покажи кампании",
-                "все кампании", "кампании", "покажи все", "какие кампании",
+                "все кампании", "покажи все", "какие кампании", "список моих",
             )):
                 campaigns = await self.direct.get_campaigns()
                 valid = [c for c in campaigns if "error" not in c]
