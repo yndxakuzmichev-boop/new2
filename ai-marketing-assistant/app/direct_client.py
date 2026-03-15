@@ -174,9 +174,39 @@ class DirectClient:
             logger.error("Ошибка при запуске кампании %d: %s", campaign_id, e)
             return False
 
+    async def _post_v501(self, endpoint: str, body: dict) -> dict:
+        """POST к v501 endpoint — используется для Единой перфоманс-кампании (ЕПК/UPC)."""
+        base = self.base_url.replace("/json/v5/", "/v501/")
+        url = base + endpoint
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=body, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+
     async def _update_via_weekly_spending(self, campaign_id: int, amount_micros: int, amount: float) -> bool:
-        """Обновление бюджета через WeeklySpendingLimit для автостратегий (UPC, TextCampaign)."""
-        for campaign_type in ("TextCampaign", "UnifiedCampaign", "SmartCampaign"):
+        """Обновление бюджета через WeeklySpendLimit для автостратегий (ЕПК, TextCampaign).
+        
+        Документация: https://yandex.ru/dev/direct/doc/ru/campaigns/update-text-campaign
+        Для ЕПК используется endpoint /v501/ и структура UnifiedCampaign.
+        Правильное поле: WeeklySpendLimit (не WeeklySpendingLimit!).
+        """
+        strategy_body = {
+            "BiddingStrategyType": "WB_MAXIMUM_CLICKS",
+            "WbMaximumClicks": {
+                "WeeklySpendLimit": amount_micros,
+            },
+        }
+
+        attempts = [
+            # Первый приоритет: ЕПК через v501
+            ("UnifiedCampaign", self._post_v501),
+            # Второй: TextCampaign через v501
+            ("TextCampaign", self._post_v501),
+            # Третий: TextCampaign через json/v5 (обратная совместимость)
+            ("TextCampaign", self._post),
+        ]
+
+        for campaign_type, post_fn in attempts:
             body = {
                 "method": "update",
                 "params": {
@@ -185,12 +215,7 @@ class DirectClient:
                             "Id": campaign_id,
                             campaign_type: {
                                 "BiddingStrategy": {
-                                    "Search": {
-                                        "BiddingStrategyType": "WB_MAXIMUM_CLICKS",
-                                        "WbMaximumClicks": {
-                                            "WeeklySpendingLimit": amount_micros,
-                                        },
-                                    },
+                                    "Search": strategy_body,
                                     "Network": {
                                         "BiddingStrategyType": "SERVING_OFF",
                                     },
@@ -201,12 +226,16 @@ class DirectClient:
                 },
             }
             try:
-                data = await self._post("campaigns", body)
-                logger.info("Ответ %s weekly budget для %d: %s", campaign_type, campaign_id, data)
+                data = await post_fn("campaigns", body)
+                logger.info("Ответ %s weekly budget (fn=%s) для %d: %s",
+                            campaign_type, post_fn.__name__, campaign_id, data)
                 update_results = data.get("result", {}).get("UpdateResults", [])
                 if update_results and not update_results[0].get("Errors"):
-                    logger.info("Бюджет кампании %d обновлён через %s до %.2f руб.", campaign_id, campaign_type, amount)
+                    logger.info("Бюджет кампании %d обновлён через %s до %.2f руб.",
+                                campaign_id, campaign_type, amount)
                     return True
+                errors = update_results[0].get("Errors") if update_results else []
+                logger.warning("Ошибки %s для %d: %s", campaign_type, campaign_id, errors)
             except Exception as e:
                 logger.warning("Не удалось обновить через %s: %s", campaign_type, e)
         return False
@@ -243,7 +272,7 @@ class DirectClient:
                 codes = [int(e.get("Code", 0)) for e in errors]
                 logger.info("Коды ошибок для кампании %d: %s", campaign_id, codes)
                 # Код 8000 — автостратегия, DailyBudget не поддерживается
-                if 8000 in codes:
+                if 6000 in codes or 8000 in codes:
                     logger.info("DailyBudget не поддерживается (автостратегия), пробуем WeeklySpendingLimit")
                     return await self._update_via_weekly_spending(campaign_id, amount_micros, amount)
                 logger.error("Ошибки DailyBudget для %d: %s", campaign_id, errors)
