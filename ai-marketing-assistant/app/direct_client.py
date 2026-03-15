@@ -240,7 +240,8 @@ class DirectClient:
                 if not errors:
                     logger.info("Бюджет кампании %d обновлён через DailyBudget до %.2f руб.", campaign_id, amount)
                     return True
-                codes = [e.get("Code") for e in errors]
+                codes = [int(e.get("Code", 0)) for e in errors]
+                logger.info("Коды ошибок для кампании %d: %s", campaign_id, codes)
                 # Код 8000 — автостратегия, DailyBudget не поддерживается
                 if 8000 in codes:
                     logger.info("DailyBudget не поддерживается (автостратегия), пробуем WeeklySpendingLimit")

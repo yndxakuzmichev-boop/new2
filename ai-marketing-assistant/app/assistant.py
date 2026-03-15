@@ -192,12 +192,8 @@ class MarketingAssistant:
                 campaigns = await self.direct.get_campaigns()
                 campaign = _resolve_campaign(campaigns, user_message, history)
 
-                # Если указан недельный бюджет — пересчитываем в дневной
-                if amount and ("неделю" in text or "недельный" in text or "в неделю" in text):
-                    daily_amount = round(amount / 7, 2)
-                    logger.info("Недельный бюджет %.2f → дневной %.2f", amount, daily_amount)
-                else:
-                    daily_amount = amount
+                # Передаём сумму как есть — direct_client сам выберет DailyBudget или WeeklySpendingLimit
+                daily_amount = amount
 
                 if campaign and daily_amount is not None:
                     cid = campaign["Id"]
@@ -230,11 +226,17 @@ class MarketingAssistant:
 
         # Формируем финальный промпт для GPT
         if action_result:
-            gpt_user_message = (
-                f"Действие выполнено успешно: {action_result}\n\n"
-                f"Запрос пользователя: {user_message}\n\n"
-                "Подтверди выполнение одним-двумя предложениями."
-            )
+            is_success = not any(w in action_result for w in ("Не удалось", "не удалось", "ошибка", "нет прав"))
+            if is_success:
+                gpt_user_message = (
+                    f"Действие УСПЕШНО выполнено в Яндекс Директ через API: {action_result}\n"
+                    f"Сообщи пользователю об успехе одним предложением."
+                )
+            else:
+                gpt_user_message = (
+                    f"Действие НЕ выполнено в Яндекс Директ. Ошибка API: {action_result}\n"
+                    f"Сообщи пользователю что именно не получилось и почему."
+                )
         elif context_data:
             gpt_user_message = (
                 f"Данные из Яндекс Директ:\n{context_data}\n\nВопрос пользователя: {user_message}"
